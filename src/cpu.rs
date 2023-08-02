@@ -9,6 +9,8 @@ pub struct CPU {
     sp: usize,
     i: u16,
     delay: u8,
+    keys: [bool; 16],
+    waiting_key: Option<u8>,
     disp: [u32; WIDTH * HEIGHT],
     halted: bool,
 }
@@ -23,6 +25,8 @@ impl CPU {
             sp: 0,
             i: 0,
             delay: 0,
+            keys: [false; 16],
+            waiting_key: None,
             disp: [0; WIDTH * HEIGHT],
             halted: false,
         }
@@ -44,6 +48,15 @@ impl CPU {
     }
 
     pub fn step(&mut self) -> bool {
+        if let Some(key) = self.waiting_key {
+            println!("Waiting on key: {:04x}", key);
+            if self.keys[key as usize] {
+                self.waiting_key = None;
+            } else {
+                return false;
+            }
+        }
+
         let opcode = self.read_opcode();
         self.pc += 2;
 
@@ -88,12 +101,15 @@ impl CPU {
                 self.draw(x, y, d);
                 return true;
             }
-            (0xE, _, 0x9, 0xE) => (), // TODO: no keys
+            (0xE, _, 0x9, 0xE) => self.key(x),
+            (0xE, _, 0xA, 0x1) => self.nkey(x),
             (0xF, _, 0, 0x7) => self.get_delay(x),
+            (0xF, _, 0, 0xA) => self.get_key(x),
             (0xF, _, 0x1, 0x5) => self.set_delay(x),
             (0xF, _, 0x1, 0x8) => (), // TODO: no sound
             (0xF, _, 0x1, 0xE) => self.i_inc(x),
-            (0xF, _, 0x0, 0xA) => (), // TODO: no keys
+            (0xF, _, 0x2, 0x9) => (), // TODO: get_sprite
+            (0xF, _, 0x3, 0x3) => (), // TODO: bcd
             (0xF, _, 0x5, 0x5) => self.reg_dump(x),
             (0xF, _, 0x6, 0x5) => self.reg_load(x),
             _ => panic!("bad opcode {:04x}", opcode),
@@ -118,6 +134,10 @@ impl CPU {
         if self.delay > 0 {
             self.delay -= 1;
         }
+    }
+
+    pub fn key_state(&mut self, key: u8, state: bool) {
+        self.keys[key as usize] = state;
     }
 
     fn disp_clear(&mut self) {
@@ -304,8 +324,27 @@ impl CPU {
         }
     }
 
+    fn key(&mut self, x: u8) {
+        let x = self.reg[x as usize];
+        if self.keys[x as usize] {
+            self.pc += 2;
+        }
+    }
+
+    fn nkey(&mut self, x: u8) {
+        let x = self.reg[x as usize];
+        if !self.keys[x as usize] {
+            self.pc += 2;
+        }
+    }
+
     fn get_delay(&mut self, x: u8) {
         self.reg[x as usize] = self.delay;
+    }
+
+    fn get_key(&mut self, x: u8) {
+        let x = self.reg[x as usize];
+        self.waiting_key = Some(x);
     }
 
     fn set_delay(&mut self, x: u8) {
