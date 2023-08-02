@@ -1,5 +1,5 @@
-pub const WIDTH: usize = 640;
-pub const HEIGHT: usize = 360;
+pub const WIDTH: usize = 64;
+pub const HEIGHT: usize = 32;
 
 pub struct CPU {
     reg: [u8; 16],
@@ -9,18 +9,20 @@ pub struct CPU {
     sp: usize,
     i: u16,
     disp: [u32; WIDTH * HEIGHT],
+    halted: bool,
 }
 
 impl CPU {
     pub fn new() -> CPU {
         CPU {
             reg: [0; 16],
-            pc: 0,
+            pc: 0x200,
             mem: [0; 4096],
             stack: [0; 16],
             sp: 0,
             i: 0,
-            disp: [0; WIDTH * HEIGHT],
+            disp: [0xffff; WIDTH * HEIGHT],
+            halted: false,
         }
     }
 
@@ -48,10 +50,13 @@ impl CPU {
         let nnn = opcode & 0x0FFF;
         let kk = (opcode & 0x00FF) as u8;
 
+        println!(
+            "opcode {:04x} pc {:04x} regs {:?}",
+            opcode, self.pc, self.reg
+        );
+
         match (c, x, y, d) {
-            (0, 0, 0, 0) => {
-                return false;
-            }
+            (0, 0, 0, 0) => self.halted = true,
             (0, 0, 0xE, 0) => self.disp_clear(),
             (0, 0, 0xE, 0xE) => self.ret(),
             (0x1, _, _, _) => self.jump(nnn),
@@ -74,11 +79,26 @@ impl CPU {
             (0xA, _, _, _) => self.set_i(nnn),
             (0xB, _, _, _) => self.jmp_off(nnn),
             (0xC, _, _, _) => self.rand(x, kk),
-            (0xD, _, _, _) => self.draw(x, y, d),
-            _ => todo!("opcode {:04x}", opcode),
+            (0xD, _, _, _) => {
+                self.draw(x, y, d);
+                return true;
+            }
+            _ => panic!("bad opcode {:04x}", opcode),
         }
 
-        true
+        false
+    }
+
+    pub fn halted(&self) -> bool {
+        self.halted
+    }
+
+    pub fn disp(&self) -> &[u32] {
+        &self.disp
+    }
+
+    pub fn load(&mut self, rom: &[u8]) {
+        self.mem[0x200..(0x200 + rom.len())].copy_from_slice(rom);
     }
 
     fn disp_clear(&mut self) {
@@ -115,14 +135,14 @@ impl CPU {
     fn eq(&mut self, x: u8, kk: u8) {
         let x_val = self.reg[x as usize];
         if x_val == kk {
-            self.pc += 1;
+            self.pc += 2;
         }
     }
 
     fn neq(&mut self, x: u8, kk: u8) {
         let x_val = self.reg[x as usize];
         if x_val != kk {
-            self.pc += 1;
+            self.pc += 2;
         }
     }
 
@@ -130,7 +150,7 @@ impl CPU {
         let x_val = self.reg[x as usize];
         let y_val = self.reg[y as usize];
         if x_val == y_val {
-            self.pc += 1;
+            self.pc += 2;
         }
     }
 
@@ -217,7 +237,7 @@ impl CPU {
         let y_val = self.reg[y as usize];
 
         if x_val != y_val {
-            self.pc += 1;
+            self.pc += 2;
         }
     }
 
@@ -247,9 +267,12 @@ impl CPU {
 
         for y in y..(y + d) {
             let row_pxls = self.mem[self.i as usize + y as usize];
-            for x in x..(x + 8) {
-                let set = (row_pxls & (0x8 >> x)) != 0;
-                let unset = self.set_px(x, y, set);
+            for x_off in 0..8 {
+                // let shift = 0x80 >> x_off;
+                // let and = row_pxls & shift;
+                // let set = and != 0;
+                let set = (row_pxls & (0x80 >> x_off)) != 0;
+                let unset = self.set_px(x + x_off, y, set);
                 if unset {
                     self.reg[0xF] = 1;
                 }
