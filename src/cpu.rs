@@ -19,6 +19,7 @@ pub struct CPU {
     sp: usize,
     i: u16,
     delay: u8,
+    sound: u8,
     keys: [bool; 16],
     waiting_key: Option<u8>,
     disp: [u32; WIDTH * HEIGHT],
@@ -35,6 +36,7 @@ impl CPU {
             sp: 0,
             i: 0,
             delay: 0,
+            sound: 0,
             keys: [false; 16],
             waiting_key: None,
             disp: [0; WIDTH * HEIGHT],
@@ -120,7 +122,7 @@ impl CPU {
             (0xF, _, 0, 0x7) => self.get_delay(x),
             (0xF, _, 0, 0xA) => self.get_key(x),
             (0xF, _, 0x1, 0x5) => self.set_delay(x),
-            (0xF, _, 0x1, 0x8) => (), // TODO: set_sound
+            (0xF, _, 0x1, 0x8) => self.set_sound(x),
             (0xF, _, 0x1, 0xE) => self.i_inc(x),
             (0xF, _, 0x2, 0x9) => self.get_sprite(x),
             (0xF, _, 0x3, 0x3) => self.bcd(x),
@@ -148,6 +150,16 @@ impl CPU {
         if self.delay > 0 {
             self.delay -= 1;
         }
+    }
+
+    pub fn sound_timer_tick(&mut self) -> bool {
+        if self.sound > 0 {
+            self.sound -= 1;
+            if self.sound == 0 {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn key_state(&mut self, key: u8, state: bool) {
@@ -363,6 +375,10 @@ impl CPU {
 
     fn set_delay(&mut self, x: u8) {
         self.delay = self.reg[x as usize];
+    }
+
+    fn set_sound(&mut self, x: u8) {
+        self.sound = self.reg[x as usize];
     }
 
     fn i_inc(&mut self, x: u8) {
