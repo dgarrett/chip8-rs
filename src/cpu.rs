@@ -254,7 +254,11 @@ impl CPU {
     }
 
     fn set_px(&mut self, x: u8, y: u8, set: bool) -> bool {
-        let pixel = &mut self.disp[x as usize + (y as usize * WIDTH)];
+        let offset = x as usize + (y as usize * WIDTH);
+        if x as usize >= WIDTH || offset >= self.disp.len() {
+            return false;
+        }
+        let pixel = &mut self.disp[offset];
         let was_set = *pixel == 0xffff;
 
         *pixel = if set { 0xffff } else { 0 };
@@ -263,16 +267,19 @@ impl CPU {
     }
 
     fn draw(&mut self, x: u8, y: u8, d: u8) {
+        let x = self.reg[x as usize];
+        let y = self.reg[y as usize];
+
         self.reg[0xF] = 0;
 
-        for y in y..(y + d) {
-            let row_pxls = self.mem[self.i as usize + y as usize];
+        for y_off in 0..d {
+            let row_pxls = self.mem[self.i as usize + y_off as usize];
             for x_off in 0..8 {
                 // let shift = 0x80 >> x_off;
                 // let and = row_pxls & shift;
                 // let set = and != 0;
                 let set = (row_pxls & (0x80 >> x_off)) != 0;
-                let unset = self.set_px(x + x_off, y, set);
+                let unset = self.set_px(x + x_off, y + y_off, set);
                 if unset {
                     self.reg[0xF] = 1;
                 }

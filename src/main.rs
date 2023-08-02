@@ -30,7 +30,7 @@ fn main() {
     load_rom(&args.rom, &mut cpu).expect("Failed to load");
 
     let mut winopts = WindowOptions::default();
-    winopts.scale = Scale::X4;
+    winopts.scale = Scale::X8;
 
     let mut window =
         Window::new("chip8-rs - ESC to exit", WIDTH, HEIGHT, winopts).unwrap_or_else(|e| {
