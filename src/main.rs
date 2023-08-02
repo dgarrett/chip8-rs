@@ -10,9 +10,9 @@ use crate::cpu::{CPU, HEIGHT, WIDTH};
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// ROM file path
-    #[arg(
-        default_value_t = ("/Users/dylangarrett/Downloads/chip8-roms-master/demos/Maze [David Winter, 199x].ch8".to_string())
-    )]
+    // #[arg(
+    //     default_value_t = ("/Users/dylangarrett/Downloads/chip8-roms-master/demos/Maze [David Winter, 199x].ch8".to_string())
+    // )]
     rom: String,
 }
 

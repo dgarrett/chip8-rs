@@ -36,8 +36,11 @@ impl CPU {
         op_byte1 << 8 | op_byte2
     }
 
+    #[allow(dead_code)]
     pub fn run(&mut self) {
-        while self.step() {}
+        while !self.halted() {
+            self.step();
+        }
     }
 
     pub fn step(&mut self) -> bool {
@@ -85,6 +88,7 @@ impl CPU {
                 self.draw(x, y, d);
                 return true;
             }
+            (0xE, _, 0x9, 0xE) => (), // TODO: no keys
             (0xF, _, 0, 0x7) => self.get_delay(x),
             (0xF, _, 0x1, 0x5) => self.set_delay(x),
             (0xF, _, 0x1, 0x8) => (), // TODO: no sound
@@ -329,6 +333,7 @@ impl CPU {
 #[test]
 fn test_add() {
     let mut cpu = CPU::new();
+    cpu.pc = 0;
 
     cpu.reg[0] = 5;
     cpu.reg[1] = 10;
@@ -351,6 +356,7 @@ fn test_add() {
 #[test]
 fn test_add_twice() {
     let mut cpu = CPU::new();
+    cpu.pc = 0;
 
     cpu.reg[0] = 5;
     cpu.reg[1] = 10;
