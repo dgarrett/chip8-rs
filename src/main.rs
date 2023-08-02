@@ -42,8 +42,8 @@ fn main() {
             panic!("{}", e);
         });
 
-    // ~60 FPS
-    window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+    // ~15 FPS
+    window.limit_update_rate(Some(std::time::Duration::from_micros(16600 * 4)));
 
     const KEYS: [Key; 16] = [
         Key::X,
@@ -64,36 +64,45 @@ fn main() {
         Key::V,
     ];
 
+    let mut pause = false;
+
+    // Sound setup
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
-
     let source = SineWave::new(340.0)
         .take_duration(Duration::from_secs_f32(0.1))
         .amplify(0.30);
-    sink.append(source.clone());
 
     println!("Starting");
-    let mut iter_sinc_redraw = 0;
     while window.is_open() && !window.is_key_down(Key::Escape) && !cpu.halted() {
-        for (i, key) in KEYS.into_iter().enumerate() {
-            debug!("Key {i} {key:?} state {}", window.is_key_down(key));
-            cpu.key_state(i as u8, window.is_key_down(key));
+        if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) {
+            println!(
+                "Space pressed. {}",
+                if pause { "Unpausing" } else { "Pausing" }
+            );
+            pause = !pause;
         }
 
-        cpu.delay_timer_tick();
+        if !pause {
+            for (i, key) in KEYS.into_iter().enumerate() {
+                debug!("Key {i} {key:?} state {}", window.is_key_down(key));
+                cpu.key_state(i as u8, window.is_key_down(key));
+            }
 
-        if cpu.sound_timer_tick() {
-            sink.append(source.clone());
+            // 240Hz
+            for _ in 0..16 {
+                cpu.delay_timer_tick();
+
+                if cpu.sound_timer_tick() {
+                    sink.append(source.clone());
+                }
+
+                cpu.step();
+            }
         }
 
-        let redraw = cpu.step();
-        iter_sinc_redraw += 1;
-
-        if redraw || iter_sinc_redraw > 60 {
-            window
-                .update_with_buffer(cpu.disp(), WIDTH, HEIGHT)
-                .unwrap();
-            iter_sinc_redraw = 0;
-        }
+        window
+            .update_with_buffer(cpu.disp(), WIDTH, HEIGHT)
+            .unwrap();
     }
 }
