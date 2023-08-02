@@ -30,7 +30,7 @@ fn main() {
     load_rom(&args.rom, &mut cpu).expect("Failed to load");
 
     let mut winopts = WindowOptions::default();
-    winopts.scale = Scale::X8;
+    winopts.scale = Scale::X16;
 
     let mut window =
         Window::new("chip8-rs - ESC to exit", WIDTH, HEIGHT, winopts).unwrap_or_else(|e| {
@@ -41,13 +41,17 @@ fn main() {
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     println!("Starting");
+    let mut iter_sinc_redraw = 0;
     while window.is_open() && !window.is_key_down(Key::Escape) && !cpu.halted() {
+        cpu.delay_timer_tick();
         let redraw = cpu.step();
+        iter_sinc_redraw += 1;
 
-        if redraw {
+        if redraw || iter_sinc_redraw > 60 {
             window
                 .update_with_buffer(cpu.disp(), WIDTH, HEIGHT)
                 .unwrap();
+            iter_sinc_redraw = 0;
         }
     }
 }

@@ -8,6 +8,7 @@ pub struct CPU {
     stack: [u16; 16],
     sp: usize,
     i: u16,
+    delay: u8,
     disp: [u32; WIDTH * HEIGHT],
     halted: bool,
 }
@@ -21,7 +22,8 @@ impl CPU {
             stack: [0; 16],
             sp: 0,
             i: 0,
-            disp: [0xffff; WIDTH * HEIGHT],
+            delay: 0,
+            disp: [0; WIDTH * HEIGHT],
             halted: false,
         }
     }
@@ -83,6 +85,11 @@ impl CPU {
                 self.draw(x, y, d);
                 return true;
             }
+            (0xF, _, 0, 0x7) => self.get_delay(x),
+            (0xF, _, 0x1, 0x5) => self.set_delay(x),
+            (0xF, _, 0x1, 0x8) => (), // no sound
+            (0xF, _, 0x1, 0xE) => self.i_inc(x),
+            (0xF, _, 0x0, 0xA) => (), // no keys
             _ => panic!("bad opcode {:04x}", opcode),
         }
 
@@ -99,6 +106,12 @@ impl CPU {
 
     pub fn load(&mut self, rom: &[u8]) {
         self.mem[0x200..(0x200 + rom.len())].copy_from_slice(rom);
+    }
+
+    pub fn delay_timer_tick(&mut self) {
+        if self.delay > 0 {
+            self.delay -= 1;
+        }
     }
 
     fn disp_clear(&mut self) {
@@ -159,7 +172,7 @@ impl CPU {
     }
 
     fn inc(&mut self, x: u8, kk: u8) {
-        self.reg[x as usize] += kk;
+        self.reg[x as usize] = self.reg[x as usize].wrapping_add(kk);
         // no flag
     }
 
@@ -254,14 +267,15 @@ impl CPU {
     }
 
     fn set_px(&mut self, x: u8, y: u8, set: bool) -> bool {
+        const COLOR: u32 = 0x0000ffff;
         let offset = x as usize + (y as usize * WIDTH);
         if x as usize >= WIDTH || offset >= self.disp.len() {
             return false;
         }
         let pixel = &mut self.disp[offset];
-        let was_set = *pixel == 0xffff;
+        let was_set = *pixel == COLOR;
 
-        *pixel = if set { 0xffff } else { 0 };
+        *pixel = if set { COLOR } else { 0 };
 
         was_set && (*pixel == 0)
     }
@@ -275,9 +289,6 @@ impl CPU {
         for y_off in 0..d {
             let row_pxls = self.mem[self.i as usize + y_off as usize];
             for x_off in 0..8 {
-                // let shift = 0x80 >> x_off;
-                // let and = row_pxls & shift;
-                // let set = and != 0;
                 let set = (row_pxls & (0x80 >> x_off)) != 0;
                 let unset = self.set_px(x + x_off, y + y_off, set);
                 if unset {
@@ -285,6 +296,19 @@ impl CPU {
                 }
             }
         }
+    }
+
+    fn get_delay(&mut self, x: u8) {
+        self.reg[x as usize] = self.delay;
+    }
+
+    fn set_delay(&mut self, x: u8) {
+        self.delay = self.reg[x as usize];
+    }
+
+    fn i_inc(&mut self, x: u8) {
+        let x = self.reg[x as usize];
+        self.i += x as u16;
     }
 }
 
