@@ -120,8 +120,8 @@ impl CPU {
             (0xF, _, 0x1, 0x5) => self.set_delay(x),
             (0xF, _, 0x1, 0x8) => (), // TODO: set_sound
             (0xF, _, 0x1, 0xE) => self.i_inc(x),
-            (0xF, _, 0x2, 0x9) => (), // TODO: get_sprite
-            (0xF, _, 0x3, 0x3) => (), // TODO: bcd
+            (0xF, _, 0x2, 0x9) => self.get_sprite(x),
+            (0xF, _, 0x3, 0x3) => self.bcd(x),
             (0xF, _, 0x5, 0x5) => self.reg_dump(x),
             (0xF, _, 0x6, 0x5) => self.reg_load(x),
             _ => panic!("bad opcode {:04x}", opcode),
@@ -366,6 +366,24 @@ impl CPU {
     fn i_inc(&mut self, x: u8) {
         let x = self.reg[x as usize];
         self.i += x as u16;
+    }
+
+    fn get_sprite(&mut self, x: u8) {
+        let x = self.reg[x as usize];
+
+        // sprites start at 0 in memory
+        self.i = x as u16 * 5;
+    }
+
+    fn bcd(&mut self, x: u8) {
+        let x = self.reg[x as usize];
+        let hundreds = x / 100;
+        let tens = (x % 100) / 10;
+        let ones = x % 10;
+
+        self.mem[self.i as usize] = hundreds;
+        self.mem[self.i as usize + 1] = tens;
+        self.mem[self.i as usize + 2] = ones;
     }
 
     fn reg_dump(&mut self, x: u8) {

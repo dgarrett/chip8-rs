@@ -14,6 +14,9 @@ struct Args {
         // default_value_t = ("".to_string())
     )]
     rom: String,
+    // /// Verbose logging
+    // #[arg(default_value_t = false)]
+    // verbose: bool,
 }
 
 fn load_rom(path: &str, cpu: &mut CPU) -> std::io::Result<()> {
