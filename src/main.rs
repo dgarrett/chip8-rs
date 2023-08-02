@@ -1,6 +1,7 @@
 mod cpu;
 
 use clap::Parser;
+use log::debug;
 use minifb::{Key, Scale, Window, WindowOptions};
 use std::fs;
 
@@ -14,10 +15,6 @@ struct Args {
         // default_value_t = ("".to_string())
     )]
     rom: String,
-
-    /// Verbose logging
-    #[arg(short, long, default_value_t = false)]
-    verbose: bool,
 }
 
 fn load_rom(path: &str, cpu: &mut CPU) -> std::io::Result<()> {
@@ -45,7 +42,7 @@ fn main() {
     // Limit to max ~60 fps update rate
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
-    let keys: [Key; 16] = [
+    const KEYS: [Key; 16] = [
         Key::X,
         Key::Key1,
         Key::Key2,
@@ -67,8 +64,8 @@ fn main() {
     println!("Starting");
     let mut iter_sinc_redraw = 0;
     while window.is_open() && !window.is_key_down(Key::Escape) && !cpu.halted() {
-        for (i, key) in keys.into_iter().enumerate() {
-            // println!("Key {i} {key:?} state {}", window.is_key_down(key));
+        for (i, key) in KEYS.into_iter().enumerate() {
+            debug!("Key {i} {key:?} state {}", window.is_key_down(key));
             cpu.key_state(i as u8, window.is_key_down(key));
         }
         cpu.delay_timer_tick();
