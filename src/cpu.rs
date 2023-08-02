@@ -1,3 +1,5 @@
+use log::{debug, info};
+
 pub const WIDTH: usize = 64;
 pub const HEIGHT: usize = 32;
 
@@ -61,7 +63,7 @@ impl CPU {
 
     pub fn step(&mut self) -> bool {
         if let Some(key) = self.waiting_key {
-            println!("Waiting on key: {:04x}", key);
+            info!("Waiting on key: {:04x}", key);
             if self.keys[key as usize] {
                 self.waiting_key = None;
             } else {
@@ -80,9 +82,9 @@ impl CPU {
         let nnn = opcode & 0x0FFF;
         let kk = (opcode & 0x00FF) as u8;
 
-        println!(
+        debug!(
             "opcode {:04x} pc {:04x} regs {:?}",
-            opcode, self.pc, self.reg
+            opcode, self.pc, self.reg,
         );
 
         match (c, x, y, d) {
