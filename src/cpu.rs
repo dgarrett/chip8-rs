@@ -87,9 +87,11 @@ impl CPU {
             }
             (0xF, _, 0, 0x7) => self.get_delay(x),
             (0xF, _, 0x1, 0x5) => self.set_delay(x),
-            (0xF, _, 0x1, 0x8) => (), // no sound
+            (0xF, _, 0x1, 0x8) => (), // TODO: no sound
             (0xF, _, 0x1, 0xE) => self.i_inc(x),
-            (0xF, _, 0x0, 0xA) => (), // no keys
+            (0xF, _, 0x0, 0xA) => (), // TODO: no keys
+            (0xF, _, 0x5, 0x5) => self.reg_dump(x),
+            (0xF, _, 0x6, 0x5) => self.reg_load(x),
             _ => panic!("bad opcode {:04x}", opcode),
         }
 
@@ -275,7 +277,7 @@ impl CPU {
         let pixel = &mut self.disp[offset];
         let was_set = *pixel == COLOR;
 
-        *pixel = if set { COLOR } else { 0 };
+        *pixel = if set ^ was_set { COLOR } else { 0 };
 
         was_set && (*pixel == 0)
     }
@@ -309,6 +311,18 @@ impl CPU {
     fn i_inc(&mut self, x: u8) {
         let x = self.reg[x as usize];
         self.i += x as u16;
+    }
+
+    fn reg_dump(&mut self, x: u8) {
+        let x = x + 1; // easier inclusive
+        self.mem[(self.i as usize)..(self.i as usize + x as usize)]
+            .copy_from_slice(&self.reg[0..(x as usize)]);
+    }
+
+    fn reg_load(&mut self, x: u8) {
+        let x = x + 1; // easier inclusive
+        self.reg[0..(x as usize)]
+            .copy_from_slice(&self.mem[(self.i as usize)..(self.i as usize + x as usize)])
     }
 }
 
