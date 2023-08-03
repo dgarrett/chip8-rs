@@ -10,6 +10,9 @@ use std::time::Duration;
 
 use crate::cpu::{CPU, HEIGHT, WIDTH};
 
+const WINDOW_TITLE: &str = "chip8-rs - ESC to exit";
+const WINDOW_TITLE_PAUSED: &str = "chip8-rs (PAUSED) - ESC to exit";
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -32,15 +35,15 @@ fn main() {
     let args = Args::parse();
 
     let mut cpu = CPU::new();
+    let mut cpu_snapshot: Option<CPU> = None;
     load_rom(&args.rom, &mut cpu).expect("Failed to load");
 
     let mut winopts = WindowOptions::default();
     winopts.scale = Scale::X16;
 
-    let mut window =
-        Window::new("chip8-rs - ESC to exit", WIDTH, HEIGHT, winopts).unwrap_or_else(|e| {
-            panic!("{}", e);
-        });
+    let mut window = Window::new(WINDOW_TITLE, WIDTH, HEIGHT, winopts).unwrap_or_else(|e| {
+        panic!("{}", e);
+    });
 
     // ~15 FPS
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600 * 4)));
@@ -81,6 +84,23 @@ fn main() {
                 if pause { "Unpausing" } else { "Pausing" }
             );
             pause = !pause;
+            window.set_title(if pause {
+                WINDOW_TITLE_PAUSED
+            } else {
+                WINDOW_TITLE
+            })
+        }
+
+        if window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) {
+            println!("Snapshotting");
+            cpu_snapshot = Some(cpu.clone());
+        } else if window.is_key_pressed(Key::Key9, minifb::KeyRepeat::No) {
+            if let Some(cpu_snapshot) = &cpu_snapshot {
+                println!("Restoring");
+                cpu = cpu_snapshot.clone();
+            } else {
+                println!("No snapshot to restore");
+            }
         }
 
         if !pause {
